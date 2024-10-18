@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Meme Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        #meme-canvas {
+            border: 1px solid #000;
+            margin-top: 20px;
+            cursor: crosshair;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        input[type="file"],
+        input[type="text"],
+        select {
+            margin: 10px;
+            padding: 8px;
+            width: 300px;
+        }
+
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+
+        #drag-area {
+            width: 500px;
+            height: 500px;
+            border: 2px dashed #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #drag-area.hover {
+            border-color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Enhanced Meme Generator</h1>
+
+    <div class="controls">
+        <!-- Drag-and-Drop Area -->
+        <div id="drag-area">Drag and Drop Image Here or Click to Upload</div>
+        
+        <!-- Image Upload -->
+        <input type="file" id="image-upload" accept="image/*" style="display: none;">
+        
+        <!-- Text Inputs for Meme -->
+        <input type="text" id="top-text" placeholder="Top text">
+        <input type="text" id="bottom-text" placeholder="Bottom text">
+        
+        <!-- Customization Options -->
+        <label for="font-size">Font Size: </label>
+        <select id="font-size">
+            <option value="40">40px</option>
+            <option value="50">50px</option>
+            <option value="60">60px</option>
+            <option value="70">70px</option>
+        </select>
+
+        <label for="font-color">Font Color: </label>
+        <input type="color" id="font-color" value="#ffffff">
+
+        <!-- Generate and Download Buttons -->
+        <button onclick="generateMeme()">Generate Meme</button>
+        <button onclick="downloadMeme()">Download Meme</button>
+    </div>
+
+    <!-- Meme Canvas -->
+    <canvas id="meme-canvas" width="500" height="500"></canvas>
+
+    <script>
+        const canvas = document.getElementById('meme-canvas');
+        const ctx = canvas.getContext('2d');
+        let image = null;
+        let topTextPosition = { x: 250, y: 50 };   // Default position for top text
+        let bottomTextPosition = { x: 250, y: 450 }; // Default position for bottom text
+
+        const fontSizeSelect = document.getElementById('font-size');
+        const fontColorInput = document.getElementById('font-color');
+
+        // Handle drag-and-drop
+        const dragArea = document.getElementById('drag-area');
+        dragArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dragArea.classList.add('hover');
+        });
+        dragArea.addEventListener('dragleave', () => {
+            dragArea.classList.remove('hover');
+        });
+        dragArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragArea.classList.remove('hover');
+            handleImageUpload(e.dataTransfer.files[0]);
+        });
+        dragArea.addEventListener('click', () => {
+            document.getElementById('image-upload').click();
+        });
+
+        document.getElementById('image-upload').addEventListener('change', (e) => {
+            handleImageUpload(e.target.files[0]);
+        });
+
+        // Function to handle image upload
+        function handleImageUpload(file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                image = new Image();
+                image.src = event.target.result;
+                image.onload = function() {
+                    // Adjust canvas size based on image size
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+                    drawMeme(); // Draw the meme after image loads
+                }
+            }
+            reader.readAsDataURL(file);
+        }
+
+        // Function to generate meme with top and bottom text
+        function generateMeme() {
+            if (!image) {
+                alert('Please upload an image first!');
+                return;
+            }
+            drawMeme();
+        }
+
+        // Function to draw meme on canvas
+        function drawMeme() {
+            // Draw the image
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+            // Get text input values
+            const topText = document.getElementById('top-text').value;
+            const bottomText = document.getElementById('bottom-text').value;
+            const fontSize = fontSizeSelect.value;
+            const fontColor = fontColorInput.value;
+
+            // Set font style
+            ctx.font = `bold ${fontSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillStyle = fontColor;
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 5;
+
+            // Draw top text
+            ctx.strokeText(topText, topTextPosition.x, topTextPosition.y);
+            ctx.fillText(topText, topTextPosition.x, topTextPosition.y);
+
+            // Draw bottom text
+            ctx.strokeText(bottomText, bottomTextPosition.x, bottomTextPosition.y);
+            ctx.fillText(bottomText, bottomTextPosition.x, bottomTextPosition.y);
+        }
+
+        // Function to download the meme
+        function downloadMeme() {
+            const link = document.createElement('a');
+            link.download = 'meme.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        // Add text positioning with drag
+        let draggingText = null;
+
+        canvas.addEventListener('mousedown', (e) => {
+            const mousePos = getMousePos(canvas, e);
+            if (isInsideText(mousePos, topTextPosition)) {
+                draggingText = 'top';
+            } else if (isInsideText(mousePos, bottomTextPosition)) {
+                draggingText = 'bottom';
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (draggingText) {
+                const mousePos = getMousePos(canvas, e);
+                if (draggingText === 'top') {
+                    topTextPosition = mousePos;
+                } else if (draggingText === 'bottom') {
+                    bottomTextPosition = mousePos;
+                }
+                drawMeme(); // Redraw the meme with updated text positions
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            draggingText = null;
+        });
+
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: evt.clientX - rect.left,
+                y: evt.clientY - rect.top
+            };
+        }
+
+        function isInsideText(pos, textPos) {
+            return Math.abs(pos.x - textPos.x) < 150 && Math.abs(pos.y - textPos.y) < 50;
+        }
+    </script>
+
+</body>
+</html>
